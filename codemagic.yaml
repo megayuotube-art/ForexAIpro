@@ -11,10 +11,10 @@ workflows:
           python3 -m pip install --upgrade pip
           python3 -m pip install -r requirements.txt
           python3 -m pip install flet buildozer
-      - name: Build APK with Flet / Buildozer
+      - name: Build APK with Flet
         script: |
-          # main.py o'rniga joriy papkani (.) ko'rsatamiz
-          flet build apk . --product "ForexAI 2pro" --org uz.megayuotube
+          # --yes bayrog'i orqali SDK o'rnatilishini avtomatik tasdiqlaymiz
+          flet build apk . --product "ForexAI 2pro" --org uz.megayuotube --yes
     artifacts:
       - build/*.apk
       - bin/*.apk
