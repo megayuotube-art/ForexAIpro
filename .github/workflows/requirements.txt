@@ -1,4 +1,0 @@
-flet>=0.24.0
-yfinance
-numpy
-requests
