@@ -13,7 +13,9 @@ workflows:
           python3 -m pip install flet buildozer
       - name: Build APK with Flet / Buildozer
         script: |
-          python3 -m flet pack main.py --product "ForexAI 2pro" --org uz.megayuotube --android
+          # Python -m o'rniga to'g'ridan-to'g'ri flet build buyrug'idan foydalanamiz
+          flet build apk main.py --product "ForexAI 2pro" --org uz.megayuotube
     artifacts:
       - build/*.apk
       - bin/*.apk
+      - dist/*.apk
