@@ -15,7 +15,6 @@ workflows:
         script: |
           flet build apk . --product "ForexAI 2pro" --org uz.megayuotube --yes
 artifacts:
-      - build/**/*.apk
-      - dist/*.apk
+      - "build/app/outputs/flutter-apk/*.apk"
+      - "build/apk/*.apk"
       - "*.apk"
-      - build/app/outputs/flutter-apk/*.apk
