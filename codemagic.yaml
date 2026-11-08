@@ -13,9 +13,9 @@ workflows:
           python3 -m pip install flet buildozer
       - name: Build APK with Flet
         script: |
-          # --yes bayrog'i orqali SDK o'rnatilishini avtomatik tasdiqlaymiz
           flet build apk . --product "ForexAI 2pro" --org uz.megayuotube --yes
     artifacts:
-      - build/*.apk
-      - bin/*.apk
+      - build/**/*.apk
       - dist/*.apk
+      - *.apk
+      - build/app/outputs/flutter-apk/*.apk
