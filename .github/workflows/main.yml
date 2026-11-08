@@ -28,11 +28,14 @@ jobs:
       run: |
         flet build apk . --product "ForexAI 2pro" --org uz.megayuotube --yes
 
+    - name: Find and List all APKs (Debug/Check)
+      run: |
+        echo "Barcha topilgan APK fayllar:"
+        find . -name "*.apk"
+
     - name: Upload APK Artifact
       uses: actions/upload-artifact@v4
       with:
         name: forex-ai-apk
         path: |
-          build/app/outputs/flutter-apk/*.apk
-          dist/*.apk
-          *.apk
+          **/*.apk
