@@ -353,5 +353,6 @@ def main(page: ft.Page):
     refresh_ui()
 
 
+# To'g'ri usul (mobil va desktop uchun moslashuvchan):
 if __name__ == "__main__":
     ft.app(target=main)
