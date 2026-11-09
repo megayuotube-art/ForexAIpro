@@ -23,9 +23,14 @@ def calculate_trade_setup(closes: list, signal_type: str, pair: str):
     """
     ATR (o'rtacha tebranish) asosida aniq Entry, SL, TP1 va TP2 narxlarini hisoblaydi.
     """
-    current_price = closes[-1]
-    diffs = [abs(closes[i] - closes[i - 1]) for i in range(1, len(closes))]
-    atr = np.mean(diffs[-14:]) if len(diffs) >= 14 else current_price * 0.002
+    try:
+        current_price = closes[-1]
+        diffs = [abs(closes[i] - closes[i - 1]) for i in range(1, len(closes))]
+        atr = np.mean(diffs[-14:]) if len(diffs) >= 14 else current_price * 0.002
+    except Exception:
+        current_price = 1.0840
+        atr = 0.0020
+
     decimals = 2 if "XAU" in pair or "JPY" in pair else 4
 
     if "BUY" in signal_type:
@@ -51,21 +56,21 @@ def calculate_trade_setup(closes: list, signal_type: str, pair: str):
 
 
 def build_pro_chart(ohlc_data: list, setup: dict, show_sl_tp: bool = True) -> cv.Canvas:
-    """
-    ft.Canvas orqali shamchalar, AI prognoz konusi va Entry/SL/TP zonalarini chizadi.
-    """
     width = 360
     height = 240
     pad_right = 58
     chart_w = width - pad_right
     chart_h = height - 20
 
-    all_prices = [c["high"] for c in ohlc_data] + [c["low"] for c in ohlc_data]
-    if show_sl_tp:
-        all_prices.extend([setup["sl"], setup["tp2"], setup["entry"]])
+    try:
+        all_prices = [c["high"] for c in ohlc_data] + [c["low"] for c in ohlc_data]
+        if show_sl_tp:
+            all_prices.extend([setup["sl"], setup["tp2"], setup["entry"]])
+        min_p = min(all_prices)
+        max_p = max(all_prices)
+    except Exception:
+        min_p, max_p = 1.0700, 1.1000
 
-    min_p = min(all_prices)
-    max_p = max(all_prices)
     p_range = max(max_p - min_p, 1e-5)
 
     def price_to_y(p):
@@ -73,61 +78,67 @@ def build_pro_chart(ohlc_data: list, setup: dict, show_sl_tp: bool = True) -> cv
 
     shapes = []
 
-    # 1. Risk va Reward zonalari
     if show_sl_tp:
-        y_entry = price_to_y(setup["entry"])
-        y_sl = price_to_y(setup["sl"])
-        y_tp2 = price_to_y(setup["tp2"])
+        try:
+            y_entry = price_to_y(setup["entry"])
+            y_sl = price_to_y(setup["sl"])
+            y_tp2 = price_to_y(setup["tp2"])
 
-        shapes.append(
-            cv.Rect(
-                x=0, y=min(y_entry, y_tp2), width=chart_w, height=abs(y_tp2 - y_entry),
-                paint=ft.Paint(color="#1A10B981", style=ft.PaintingStyle.FILL),
+            shapes.append(
+                cv.Rect(
+                    x=0, y=min(y_entry, y_tp2), width=chart_w, height=abs(y_tp2 - y_entry),
+                    paint=ft.Paint(color="#1A10B981", style=ft.PaintingStyle.FILL),
+                )
             )
-        )
-        shapes.append(
-            cv.Rect(
-                x=0, y=min(y_entry, y_sl), width=chart_w, height=abs(y_sl - y_entry),
-                paint=ft.Paint(color="#1AEF4444", style=ft.PaintingStyle.FILL),
+            shapes.append(
+                cv.Rect(
+                    x=0, y=min(y_entry, y_sl), width=chart_w, height=abs(y_sl - y_entry),
+                    paint=ft.Paint(color="#1AEF4444", style=ft.PaintingStyle.FILL),
+                )
             )
-        )
+        except Exception:
+            pass
 
-    # 2. Shamchalar (Candlesticks)
-    candles_count = len(ohlc_data)
+    candles_count = len(ohlc_data) if ohlc_data else 1
     step_x = (chart_w * 0.72) / max(candles_count, 1)
     candle_w = max(4, step_x * 0.65)
 
     for idx, c in enumerate(ohlc_data):
-        cx = idx * step_x + step_x / 2
-        is_bull = c["close"] >= c["open"]
-        col = ACCENT_GREEN if is_bull else ACCENT_RED
+        try:
+            cx = idx * step_x + step_x / 2
+            is_bull = c["close"] >= c["open"]
+            col = ACCENT_GREEN if is_bull else ACCENT_RED
 
-        y_high = price_to_y(c["high"])
-        y_low = price_to_y(c["low"])
-        y_open = price_to_y(c["open"])
-        y_close = price_to_y(c["close"])
+            y_high = price_to_y(c["high"])
+            y_low = price_to_y(c["low"])
+            y_open = price_to_y(c["open"])
+            y_close = price_to_y(c["close"])
 
-        shapes.append(cv.Line(cx, y_high, cx, y_low, paint=ft.Paint(color=col, stroke_width=1.2)))
-        shapes.append(
-            cv.Rect(
-                x=cx - candle_w / 2, y=min(y_open, y_close), width=candle_w,
-                height=max(2, abs(y_close - y_open)),
-                paint=ft.Paint(color=col, style=ft.PaintingStyle.FILL),
+            shapes.append(cv.Line(cx, y_high, cx, y_low, paint=ft.Paint(color=col, stroke_width=1.2)))
+            shapes.append(
+                cv.Rect(
+                    x=cx - candle_w / 2, y=min(y_open, y_close), width=candle_w,
+                    height=max(2, abs(y_close - y_open)),
+                    paint=ft.Paint(color=col, style=ft.PaintingStyle.FILL),
+                )
             )
-        )
+        except Exception:
+            continue
 
-    # 3. AI Prognoz Trayektoriyasi
-    last_x = (candles_count - 1) * step_x + step_x / 2
-    last_y = price_to_y(ohlc_data[-1]["close"])
-    target_y = price_to_y(setup["tp1"])
-    shapes.append(
-        cv.Line(
-            last_x, last_y, chart_w - 6, target_y,
-            paint=ft.Paint(color="#38BDF8", stroke_width=2, stroke_dash_pattern=[5, 4])
-        )
-    )
+    if ohlc_data:
+        try:
+            last_x = (candles_count - 1) * step_x + step_x / 2
+            last_y = price_to_y(ohlc_data[-1]["close"])
+            target_y = price_to_y(setup["tp1"])
+            shapes.append(
+                cv.Line(
+                    last_x, last_y, chart_w - 6, target_y,
+                    paint=ft.Paint(color="#38BDF8", stroke_width=2, stroke_dash_pattern=[5, 4])
+                )
+            )
+        except Exception:
+            pass
 
-    # 4. Entry, SL, TP1, TP2 gorizontal chiziqlari va o'ng o'qdagi narx teglari
     if show_sl_tp:
         levels = [
             ("TP2", setup["tp2"], ACCENT_GREEN),
@@ -136,22 +147,25 @@ def build_pro_chart(ohlc_data: list, setup: dict, show_sl_tp: bool = True) -> cv
             ("SL", setup["sl"], ACCENT_RED),
         ]
         for label, val, col in levels:
-            ly = price_to_y(val)
-            shapes.append(
-                cv.Line(0, ly, chart_w, ly, paint=ft.Paint(color=col, stroke_width=1.2, stroke_dash_pattern=[4, 3]))
-            )
-            shapes.append(
-                cv.Rect(
-                    x=chart_w + 2, y=ly - 9, width=54, height=18, border_radius=4,
-                    paint=ft.Paint(color=col, style=ft.PaintingStyle.FILL)
+            try:
+                ly = price_to_y(val)
+                shapes.append(
+                    cv.Line(0, ly, chart_w, ly, paint=ft.Paint(color=col, stroke_width=1.2, stroke_dash_pattern=[4, 3]))
                 )
-            )
-            shapes.append(
-                cv.Text(
-                    x=chart_w + 5, y=ly - 7, text=f"{val:.{setup['decimals']}f}",
-                    style=ft.TextStyle(size=9, weight=ft.FontWeight.BOLD, color="#FFFFFF")
+                shapes.append(
+                    cv.Rect(
+                        x=chart_w + 2, y=ly - 9, width=54, height=18, border_radius=4,
+                        paint=ft.Paint(color=col, style=ft.PaintingStyle.FILL)
+                    )
                 )
-            )
+                shapes.append(
+                    cv.Text(
+                        x=chart_w + 5, y=ly - 7, text=f"{val:.{setup['decimals']}f}",
+                        style=ft.TextStyle(size=9, weight=ft.FontWeight.BOLD, color="#FFFFFF")
+                    )
+                )
+            except Exception:
+                pass
 
     return cv.Canvas(shapes=shapes, width=width, height=height)
 
@@ -208,20 +222,27 @@ def main(page: ft.Page):
         }
         try:
             df = yf.download(ticker_map[pair], period="5d", interval=tf, progress=False)
-            df = df.tail(26)
-            ohlc = []
-            for _, row in df.iterrows():
-                ohlc.append({
-                    "open": float(row["Open"].iloc[0] if hasattr(row["Open"], "iloc") else row["Open"]),
-                    "high": float(row["High"].iloc[0] if hasattr(row["High"], "iloc") else row["High"]),
-                    "low": float(row["Low"].iloc[0] if hasattr(row["Low"], "iloc") else row["Low"]),
-                    "close": float(row["Close"].iloc[0] if hasattr(row["Close"], "iloc") else row["Close"]),
-                })
-            if len(ohlc) >= 5:
-                return ohlc
+            if not df.empty:
+                df = df.tail(26)
+                ohlc = []
+                for _, row in df.iterrows():
+                    open_val = row["Open"].iloc[0] if hasattr(row["Open"], "iloc") else row["Open"]
+                    high_val = row["High"].iloc[0] if hasattr(row["High"], "iloc") else row["High"]
+                    low_val = row["Low"].iloc[0] if hasattr(row["Low"], "iloc") else row["Low"]
+                    close_val = row["Close"].iloc[0] if hasattr(row["Close"], "iloc") else row["Close"]
+                    
+                    ohlc.append({
+                        "open": float(open_val),
+                        "high": float(high_val),
+                        "low": float(low_val),
+                        "close": float(close_val),
+                    })
+                if len(ohlc) >= 5:
+                    return ohlc
         except Exception:
             pass
 
+        # Internet bo'lmaganda yoki xatolik yuz berganda avtomatik zaxira ma'lumot
         base = 1.0840 if pair == "EUR/USD" else 2645.0 if pair == "XAU/USD" else 1.2650
         step = 0.0006 if base < 10 else 2.5
         return [
@@ -230,114 +251,117 @@ def main(page: ft.Page):
         ]
 
     def refresh_ui():
-        content_container.controls.clear()
+        try:
+            content_container.controls.clear()
 
-        radar = FundamentalRadar(state["api_key"])
-        cal = radar.check_calendar_shield(state["pair"])
-        sent = radar.analyze_news_sentiment(state["pair"])
-        cot = radar.get_cot_institutional_flow(state["pair"])
+            radar = FundamentalRadar(state["api_key"])
+            cal = radar.check_calendar_shield(state["pair"])
+            sent = radar.analyze_news_sentiment(state["pair"])
+            cot = radar.get_cot_institutional_flow(state["pair"])
 
-        ohlc = fetch_market_data(state["pair"], state["tf"])
-        closes = [x["close"] for x in ohlc]
+            ohlc = fetch_market_data(state["pair"], state["tf"])
+            closes = [x["close"] for x in ohlc]
 
-        tech_prob = 74 if closes[-1] >= closes[-5] else 69
-        base_dir = "BUY" if closes[-1] >= closes[-5] else "SELL"
-        final_prob = max(50, min(96, tech_prob + sent["score_delta"]))
+            tech_prob = 74 if closes[-1] >= closes[-5] else 69
+            base_dir = "BUY" if closes[-1] >= closes[-5] else "SELL"
+            final_prob = max(50, min(96, tech_prob + sent["score_delta"]))
 
-        if cal["danger"]:
-            final_signal = f"KUTISH (XAVF: {cal['title']})"
-            sig_color = ACCENT_RED
-        else:
-            final_signal = f"KUCHLI {base_dir} ({final_prob}%)"
-            sig_color = ACCENT_GREEN if base_dir == "BUY" else ACCENT_RED
+            if cal["danger"]:
+                final_signal = f"KUTISH (XAVF: {cal['title']})"
+                sig_color = ACCENT_RED
+            else:
+                final_signal = f"KUCHLI {base_dir} ({final_prob}%)"
+                sig_color = ACCENT_GREEN if base_dir == "BUY" else ACCENT_RED
 
-        setup = calculate_trade_setup(closes, base_dir, state["pair"])
+            setup = calculate_trade_setup(closes, base_dir, state["pair"])
 
-        pair_dropdown = ft.Dropdown(
-            value=state["pair"],
-            width=130,
-            border_color=CARD_BORDER,
-            options=[ft.dropdown.Option(p) for p in ["EUR/USD", "GBP/USD", "XAU/USD", "USD/JPY"]],
-            on_change=lambda e: state.update({"pair": e.control.value}) or refresh_ui(),
-        )
+            pair_dropdown = ft.Dropdown(
+                value=state["pair"],
+                width=130,
+                border_color=CARD_BORDER,
+                options=[ft.dropdown.Option(p) for p in ["EUR/USD", "GBP/USD", "XAU/USD", "USD/JPY"]],
+                on_change=lambda e: state.update({"pair": e.control.value}) or refresh_ui(),
+            )
 
-        signal_card = ft.Container(
-            bgcolor=CARD_BG,
-            border=ft.border.all(1, CARD_BORDER),
-            border_radius=14,
-            padding=14,
-            content=ft.Column([
-                ft.Row([
-                    pair_dropdown,
-                    ft.Container(
-                        bgcolor=sig_color,
-                        padding=ft.padding.symmetric(horizontal=10, vertical=6),
-                        border_radius=8,
-                        content=ft.Text(final_signal, size=12, weight=ft.FontWeight.BOLD, color="white")
-                    )
-                ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
-                ft.Text(f"Joriy narx: {closes[-1]:.{setup['decimals']}f}  |  Model: RF + LSTM + Sentiment", size=12, color=TEXT_MUTED),
-            ])
-        )
+            signal_card = ft.Container(
+                bgcolor=CARD_BG,
+                border=ft.border.all(1, CARD_BORDER),
+                border_radius=14,
+                padding=14,
+                content=ft.Column([
+                    ft.Row([
+                        pair_dropdown,
+                        ft.Container(
+                            bgcolor=sig_color,
+                            padding=ft.padding.symmetric(horizontal=10, vertical=6),
+                            border_radius=8,
+                            content=ft.Text(final_signal, size=12, weight=ft.FontWeight.BOLD, color="white")
+                        )
+                    ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
+                    ft.Text(f"Joriy narx: {closes[-1]:.{setup['decimals']}f}  |  Model: RF + LSTM + Sentiment", size=12, color=TEXT_MUTED),
+                ])
+            )
 
-        cal_text = (
-            f"⚠️ DIQQAT: {cal['mins_left']} daqiqadan so'ng {cal['currency']} {cal['title']}!"
-            if cal["danger"] else "🟢 Kalendar Tinch (Yaqin 1 soatda High Impact yo'q)"
-        )
-        radar_card = ft.Container(
-            bgcolor="#1A1118" if cal["danger"] else CARD_BG,
-            border=ft.border.all(1, ACCENT_RED if cal["danger"] else CARD_BORDER),
-            border_radius=14,
-            padding=14,
-            content=ft.Column([
-                ft.Text("FUNDAMENTAL RADAR & HIMOYA", size=11, weight=ft.FontWeight.BOLD, color=ACCENT_BLUE),
-                ft.Text(cal_text, size=12, weight=ft.FontWeight.W_600, color=ACCENT_RED if cal["danger"] else ACCENT_GREEN),
-                ft.Text(f"📰 Yangiliklar foni: {sent['label']} | Geopolitik xavf: {sent['geo_risk']}", size=12, color=TEXT_PRIMARY),
-                ft.Text(f"🏦 Yirik fondlar (CFTC COT): {cot['long_pct']}% Long ({cot['bias']})", size=12, color=TEXT_MUTED),
-            ], spacing=6)
-        )
+            cal_text = (
+                f"⚠️ DIQQAT: {cal['mins_left']} daqiqadan so'ng {cal['currency']} {cal['title']}!"
+                if cal["danger"] else "🟢 Kalendar Tinch (Yaqin 1 soatda High Impact yo'q)"
+            )
+            radar_card = ft.Container(
+                bgcolor="#1A1118" if cal["danger"] else CARD_BG,
+                border=ft.border.all(1, ACCENT_RED if cal["danger"] else CARD_BORDER),
+                border_radius=14,
+                padding=14,
+                content=ft.Column([
+                    ft.Text("FUNDAMENTAL RADAR & HIMOYA", size=11, weight=ft.FontWeight.BOLD, color=ACCENT_BLUE),
+                    ft.Text(cal_text, size=12, weight=ft.FontWeight.W_600, color=ACCENT_RED if cal["danger"] else ACCENT_GREEN),
+                    ft.Text(f"📰 Yangiliklar foni: {sent['label']} | Geopolitik xavf: {sent['geo_risk']}", size=12, color=TEXT_PRIMARY),
+                    ft.Text(f"🏦 Yirik fondlar (CFTC COT): {cot['long_pct']}% Long ({cot['bias']})", size=12, color=TEXT_MUTED),
+                ], spacing=6)
+            )
 
-        chart_card = ft.Container(
-            bgcolor=CARD_BG,
-            border=ft.border.all(1, CARD_BORDER),
-            border_radius=14,
-            padding=12,
-            content=ft.Column([
-                ft.Row([
-                    ft.Text("AI Prognoz & SL/TP Grafik", size=13, weight=ft.FontWeight.BOLD),
-                    ft.Switch(
-                        label="SL/TP",
-                        value=state["show_sl_tp"],
-                        active_color=ACCENT_GREEN,
-                        on_change=lambda e: state.update({"show_sl_tp": e.control.value}) or refresh_ui()
-                    )
-                ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
-                build_pro_chart(ohlc, setup, state["show_sl_tp"]),
-            ])
-        )
+            chart_card = ft.Container(
+                bgcolor=CARD_BG,
+                border=ft.border.all(1, CARD_BORDER),
+                border_radius=14,
+                padding=12,
+                content=ft.Column([
+                    ft.Row([
+                        ft.Text("AI Prognoz & SL/TP Grafik", size=13, weight=ft.FontWeight.BOLD),
+                        ft.Switch(
+                            label="SL/TP",
+                            value=state["show_sl_tp"],
+                            active_color=ACCENT_GREEN,
+                            on_change=lambda e: state.update({"show_sl_tp": e.control.value}) or refresh_ui()
+                        )
+                    ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
+                    build_pro_chart(ohlc, setup, state["show_sl_tp"]),
+                ])
+            )
 
-        trade_plan_card = ft.Container(
-            bgcolor=CARD_BG,
-            border=ft.border.all(1, CARD_BORDER),
-            border_radius=14,
-            padding=14,
-            content=ft.Column([
-                ft.Row([
-                    ft.Text("SAVDO REJASI (TRADE SETUP)", size=12, weight=ft.FontWeight.BOLD, color=ACCENT_GREEN),
-                    ft.Text(f"Risk/Reward: {setup['rr']}", size=12, weight=ft.FontWeight.BOLD, color=ACCENT_BLUE),
-                ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
-                ft.Divider(height=8, color=CARD_BORDER),
-                ft.Row([
-                    ft.Column([ft.Text("ENTRY (Kirish)", size=11, color=TEXT_MUTED), ft.Text(f"{setup['entry']}", weight=ft.FontWeight.BOLD, color=ACCENT_BLUE)]),
-                    ft.Column([ft.Text("STOP LOSS", size=11, color=TEXT_MUTED), ft.Text(f"{setup['sl']}", weight=ft.FontWeight.BOLD, color=ACCENT_RED)]),
-                    ft.Column([ft.Text("TP 1 (50%)", size=11, color=TEXT_MUTED), ft.Text(f"{setup['tp1']}", weight=ft.FontWeight.BOLD, color=ACCENT_GREEN)]),
-                    ft.Column([ft.Text("TP 2 (To'liq)", size=11, color=TEXT_MUTED), ft.Text(f"{setup['tp2']}", weight=ft.FontWeight.BOLD, color=ACCENT_GREEN)]),
-                ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN)
-            ])
-        )
+            trade_plan_card = ft.Container(
+                bgcolor=CARD_BG,
+                border=ft.border.all(1, CARD_BORDER),
+                border_radius=14,
+                padding=14,
+                content=ft.Column([
+                    ft.Row([
+                        ft.Text("SAVDO REJASI (TRADE SETUP)", size=12, weight=ft.FontWeight.BOLD, color=ACCENT_GREEN),
+                        ft.Text(f"Risk/Reward: {setup['rr']}", size=12, weight=ft.FontWeight.BOLD, color=ACCENT_BLUE),
+                    ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
+                    ft.Divider(height=8, color=CARD_BORDER),
+                    ft.Row([
+                        ft.Column([ft.Text("ENTRY (Kirish)", size=11, color=TEXT_MUTED), ft.Text(f"{setup['entry']}", weight=ft.FontWeight.BOLD, color=ACCENT_BLUE)]),
+                        ft.Column([ft.Text("STOP LOSS", size=11, color=TEXT_MUTED), ft.Text(f"{setup['sl']}", weight=ft.FontWeight.BOLD, color=ACCENT_RED)]),
+                        ft.Column([ft.Text("TP 1 (50%)", size=11, color=TEXT_MUTED), ft.Text(f"{setup['tp1']}", weight=ft.FontWeight.BOLD, color=ACCENT_GREEN)]),
+                        ft.Column([ft.Text("TP 2 (To'liq)", size=11, color=TEXT_MUTED), ft.Text(f"{setup['tp2']}", weight=ft.FontWeight.BOLD, color=ACCENT_GREEN)]),
+                    ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN)
+                ])
+            )
 
-        content_container.controls.extend([signal_card, radar_card, chart_card, trade_plan_card])
-        page.update()
+            content_container.controls.extend([signal_card, radar_card, chart_card, trade_plan_card])
+            page.update()
+        except Exception as ex:
+            print("UI yangilashda xatolik:", ex)
 
     header = ft.Row([
         ft.Row([
@@ -353,8 +377,11 @@ def main(page: ft.Page):
         ], spacing=0)
     ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN)
 
-    page.add(header, content_container)
-    refresh_ui()
+    try:
+        page.add(header, content_container)
+        refresh_ui()
+    except Exception as e:
+        print("Boshlang'ich xatolik:", e)
 
 
 if __name__ == "__main__":
