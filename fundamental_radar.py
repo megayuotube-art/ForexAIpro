@@ -1,7 +1,6 @@
 import requests
 from datetime import datetime, timezone
 
-# Moliyaviy va geosiyosiy kalit so'zlar lug'ati (og'ir NLP o'rniga millisekundlarda ishlaydi)
 USD_BULLISH_WORDS = [
     "rate hike", "hawkish", "inflation surge", "strong jobs", "nfp beats",
     "fed holds", "powell hawkish", "treasury yields rise", "war", "crisis",
@@ -18,10 +17,6 @@ class FundamentalRadar:
         self.api_key = finnhub_api_key.strip()
 
     def check_calendar_shield(self, pair: str = "EUR/USD") -> dict:
-        """
-        ForexFactory ochiq haftalik JSON jadvalidan yaqin 60 daqiqa ichidagi
-        High Impact voqealarni tekshiradi (API kalit talab qilmaydi).
-        """
         currencies = pair.split("/")
         now = datetime.now(timezone.utc)
         try:
@@ -46,12 +41,7 @@ class FundamentalRadar:
         return {"danger": False, "title": "Tinch", "currency": "", "mins_left": None}
 
     def analyze_news_sentiment(self, pair: str = "EUR/USD") -> dict:
-        """
-        Finnhub Market News API orqali oxirgi yangiliklarni tahlil qilib,
-        signal balliga qo'shiladigan/ayiriladigan foizni qaytaradi.
-        """
         if not self.api_key:
-            # Kalit kiritilmagan bo'lsa bazaviy neytral holat
             return {
                 "score_delta": 0,
                 "label": "API kalit kiritilmagan",
@@ -85,7 +75,6 @@ class FundamentalRadar:
                     if w in lower_h:
                         usd_score -= 2
 
-            # Juftlikka qarab ta'sirni moslashtirish (masalan EUR/USD da kuchli USD = pasayish)
             if pair.endswith("/USD"):
                 pair_delta = max(-15, min(15, -usd_score))
             elif pair.startswith("USD/"):
@@ -110,9 +99,6 @@ class FundamentalRadar:
             return {"score_delta": 0, "label": "Tarmoq xatosi", "geo_risk": "Noma'lum", "headlines": []}
 
     def get_cot_institutional_flow(self, pair: str = "EUR/USD") -> dict:
-        """
-        Yirik institutsional fondlarning (CFTC COT) haftalik pozitsiya nisbati.
-        """
         cot_presets = {
             "EUR/USD": {"long_pct": 68, "bias": "Bullish"},
             "GBP/USD": {"long_pct": 61, "bias": "Bullish"},
