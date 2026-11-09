@@ -1,3 +1,7 @@
+import sys
+# Android / SeriousPython muhitida curl_cffi / cffi xatoligining oldini olish
+sys.modules["curl_cffi"] = None
+
 import flet as ft
 import flet.canvas as cv
 import yfinance as yf
@@ -353,7 +357,6 @@ def main(page: ft.Page):
     refresh_ui()
 
 
-# To'g'ri usul (mobil va desktop uchun moslashuvchan):
 if __name__ == "__main__":
     if hasattr(ft, "app"):
         ft.app(target=main)
