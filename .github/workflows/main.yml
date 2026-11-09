@@ -24,18 +24,14 @@ jobs:
         pip install -r requirements.txt
         pip install flet
 
-    - name: Build APK with Flet
+    - name: Build APK with Flet (arm64-v8a)
       run: |
-        flet build apk . --product "ForexAI 2pro" --org uz.megayuotube --yes
-
-    - name: Find and List all APKs (Debug/Check)
-      run: |
-        echo "Barcha topilgan APK fayllar:"
-        find . -name "*.apk"
+        flet build apk . --product "ForexAI 2pro" --org uz.megayuotube --android-abi arm64-v8a --yes
 
     - name: Upload APK Artifact
       uses: actions/upload-artifact@v4
       with:
-        name: forex-ai-apk
+        name: ForexAI-2pro-arm64
         path: |
-          **/*.apk
+          build/apk/app-arm64-v8a-release.apk
+          build/apk/app-release.apk
