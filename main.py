@@ -355,4 +355,5 @@ def main(page: ft.Page):
 
 # To'g'ri usul (mobil va desktop uchun moslashuvchan):
 if __name__ == "__main__":
-    ft.app(target=main)
+    if hasattr(ft, "app"):
+        ft.app(target=main)
